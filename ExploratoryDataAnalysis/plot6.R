@@ -5,23 +5,27 @@ setwd("C:/datasciencecoursera/ExploratoryDataAnalysis")
 dClassification <- readRDS("Source_Classification_Code.rds")
 dSummary <- readRDS("summarySCC_PM25.rds")
 
-dBaltimore <- subset(dSummary, fips == "24510")
+dBaltimoreLA <- subset(dSummary, fips == "24510" | fips == "06037" )
 
-dBaltimore <- merge(dBaltimore, dClassification, all.x = TRUE, all.y = FALSE)
-
-
-
-dBaltimore <- subset(dBaltimore, grepl(pattern = "vehicle", dBaltimore$SCC.Level.Two, ignore.case = TRUE))
+dBaltimoreLA <- merge(dBaltimoreLA, dClassification, all.x = TRUE, all.y = FALSE)
 
 
 
-data <- aggregate(Emissions~year, data = dBaltimore, sum)
+dBaltimoreLA <- subset(dBaltimoreLA, grepl(pattern = "vehicle", dBaltimoreLA$SCC.Level.Two, ignore.case = TRUE))
+
+dCounty <- data.frame(fips = c( "24510", "06037"), county = c("Baltimore City", "Los Angeles County"))
+
+data <- aggregate(Emissions~year + fips, data = dBaltimoreLA, sum)
+
+data <- merge(data, dCounty, all.x = TRUE, all.y = FALSE)
 
 
-ggplot(data = data, aes(y = Emissions, x = year)) + 
-    geom_bar(stat = "identity") + 
-    ggtitle("PM2.5 emissions from motor vehicle sources from 1999 to 2008") + 
+ggplot(data = data, aes(y = Emissions, x = year, group = county, color = county)) + 
+    geom_line() + 
+    ggtitle("PM2.5 emissions from 1999 to 2008 for Baltimore City") + 
     ylab("emissions of PM2.5 ")
+
+
 
 
 
