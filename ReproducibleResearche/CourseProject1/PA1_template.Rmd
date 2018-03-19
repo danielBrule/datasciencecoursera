@@ -2,7 +2,9 @@
 title: "Reproducible research - course project 1"
 author: "daniel"
 date: "19 March 2018"
-output: html_document
+output: 
+  html_document: 
+    keep_md: yes
 ---
 
 #loading and preprocessing data 
