@@ -303,12 +303,14 @@ ggplot(data = dStepsPerInterval, aes(x = interval, y = steps)) +
 <pre><code>## [1] 0</code></pre>
 <pre class="r"><code>sum(is.na(dActivity$steps))</code></pre>
 <pre><code>## [1] 2304</code></pre>
+<p>it appears that only steps has missing value</p>
 </div>
 <div id="q3.2-devise-a-strategy-for-filling-in-all-of-the-missing-values-in-the-dataset.-the-strategy-does-not-need-to-be-sophisticated.-for-example-you-could-use-the-meanmedian-for-that-day-or-the-mean-for-that-5-minute-interval-etc." class="section level2">
 <h2>Q3.2 Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.</h2>
 </div>
 <div id="q3.3-create-a-new-dataset-that-is-equal-to-the-original-dataset-but-with-the-missing-data-filled-in." class="section level2">
 <h2>Q3.3 Create a new dataset that is equal to the original dataset but with the missing data filled in.</h2>
+<p>Now, use the mean of the total ‘5-minute interval’ … to fill the Na’s and make a histogram of the total number of steps taken each day</p>
 <pre class="r"><code>dMeanStepsPerInterval   &lt;- aggregate(steps~interval, data = dActivity, FUN = mean)
 
 dActivityNoNA &lt;- dActivity
@@ -407,6 +409,7 @@ dActivityNoNA$isWeekend &lt;- dActivityNoNA$date$wday &gt;=6</code></pre>
 </div>
 <div id="q4.2-make-a-panel-plot-containing-a-time-series-plot-i.e.type-l-of-the-5-minute-interval-x-axis-and-the-average-number-of-steps-taken-averaged-across-all-weekday-days-or-weekend-days-y-axis." class="section level2">
 <h2>Q4.2 Make a panel plot containing a time series plot (i.e. type = “l”) of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).</h2>
+<p>I find this graph more clear</p>
 <pre class="r"><code>dStepsPerIntervalWeekDayvsWeekens &lt;- aggregate(steps~interval + isWeekend, data = dActivityNoNA, FUN = mean, na.rm = TRUE)
 ggplot(data = dStepsPerIntervalWeekDayvsWeekens, aes(x = interval, y = steps, color = isWeekend)) +
     geom_line() +  
