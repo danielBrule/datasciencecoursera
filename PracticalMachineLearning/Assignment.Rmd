@@ -1,0 +1,100 @@
+---
+title: 'practical machine learning : Assignment'
+author: "daniel"
+date: "13 April 2018"
+output: html_document
+---
+#Executive summary 
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+The goal of this project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the
+
+#initialisation
+##Load the libary that will be used
+```{r}
+library(ggplot2)
+library(caret)
+library(rattle)
+```
+
+##set the seed
+```{r}
+set.seed(42)
+```
+
+
+
+##Load the data
+```{r}
+dTraining <- read.csv("pml-training.csv")
+dTesting <- read.csv("pml-testing.csv")
+```
+
+##analyse the data
+
+```{r}
+#creation of a function that will clean the training & test dataset
+fPrepareData <- function(dataset){
+    #remove row with more than 90% na 
+    dim(dataset)
+    naRow <- sapply(names(dataset), function(x){sum(is.na(dataset[x]))/nrow(dataset) })
+    datasetc1 <- dataset[,naRow <.9]
+    dim(datasetc1)
+    
+    
+    #remove near zera variable 
+    nzvId <- nearZeroVar(datasetc1)
+    datasetc2 <- datasetc1[,-nzvId]
+    dim(datasetc2)
+    
+    #remove First Column 
+    datasetc3 <- datasetc2[,-1]
+    dim(datasetc3)
+    return(datasetc3)
+}
+
+dTrainingClean <- fPrepareData(dTraining)
+dTestingClean <- fPrepareData(dTesting)
+
+```
+
+##split data into trainnig and testing
+```{r}
+dPartition <- createDataPartition(dTrainingClean$classe, p=.6, list = FALSE)
+dTrainingCleanTr <- dTrainingClean[dPartition, ]
+dTrainingCleanTe <- dTrainingClean[-dPartition, ]
+rm(dPartition)
+```
+
+
+#build model 
+
+##model 1: decision tree
+```{r}
+modelDT <- train(classe ~ ., data=dTrainingCleanTr, method="rpart")
+fancyRpartPlot(modelDT$finalModel)
+
+```
+
+##model 2: random Forest 
+
+```{r}
+modelRF <- train(classe ~ ., data=dTrainingCleanTr, method="rf", do.trace=FALSE)
+```
+
+
+#Evaluate Model 
+```{r}
+pDT <- predict(modelDT, dTrainingCleanTe)
+pRF <- predict(modelRF, dTrainingCleanTe)
+
+confusionMatrix(pDT, dTrainingCleanTe$classe)
+confusionMatrix(pRF, dTrainingCleanTe$classe)
+```
+
+#Prediction 
+As random forest is better we will use it for the prediction 
+
+```{r}
+predict(modelRF, dTestingClean)
+```
