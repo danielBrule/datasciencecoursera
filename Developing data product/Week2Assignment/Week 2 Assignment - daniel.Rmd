@@ -1,0 +1,81 @@
+---
+title: "Week 2 Assignment"
+author: "daniel"
+date: "18 April 2018"
+output: ioslides_presentation
+---
+
+## Executive summary 
+The goal of this slide is to visualise the number of incident in UK in 2016 
+
+We will visualise location and number of casualties for each day of the week
+
+We will focus only on Fatal Accident
+
+## load library 
+```{r load library}
+library(leaflet)
+library(RColorBrewer)
+```
+
+## Donwloading  data 
+```{r download  data}
+temp <- tempfile()
+download.file("http://data.dft.gov.uk/road-accidents-safety-data/dftRoadSafety_Accidents_2016.zip",temp)
+data <- read.csv(unz(temp, "dftRoadSafety_Accidents_2016.csv"))
+```
+
+##  Preparing data 
+```{r prepare data}
+#select only fatal accident
+data <- data[data$Accident_Severity == 1, ]
+#select needed columns
+data <- data[,c("Latitude", "Longitude", "Number_of_Casualties", "Day_of_Week")]
+#compute color 
+col <- brewer.pal(7, "Set1")
+data$Color <- col[data$Day_of_Week]
+#compute label
+dayName <- c("1"="Sunday", "2"="Monday", "3"="Tuesday",
+       "4"="Wednesday", "5"="Thursday", "6"="Friday", "7"="Saturday")
+data$day_Name <- factor(data$Day_of_Week, levels=1:7, labels=dayName)
+
+```
+
+
+## visualise data
+
+```{r visualise, echo = FALSE}
+map <- leaflet() %>% 
+    addTiles() %>%
+    addCircleMarkers(lng = data$Longitude, 
+                     lat = data$Latitude, 
+                     radius = data$Number_of_Casualties * 5, 
+                     clusterOptions = markerClusterOptions(), 
+                     color = data$Color, 
+                     weight = 1, 
+                     label =  paste("# casualties: ", data$Number_of_Casualties, sep = " ")) %>%
+    addLegend(labels= dayName, colors= col)
+
+
+map
+```
+
+
+## code
+
+```{r code, eval= FALSE}
+map <- leaflet() %>% 
+    addTiles() %>%
+    addCircleMarkers(lng = data$Longitude, 
+                     lat = data$Latitude, 
+                     radius = data$Number_of_Casualties * 5, 
+                     clusterOptions = markerClusterOptions(), 
+                     color = data$Color, 
+                     weight = 1, 
+                     label =  paste("# casualties: ", data$Number_of_Casualties, sep = " ")) %>%
+    addLegend(labels= dayName, colors= col)
+
+
+map
+```
+
