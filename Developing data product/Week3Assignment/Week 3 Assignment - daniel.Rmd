@@ -1,0 +1,68 @@
+---
+title: "Week 3 Assignment"
+author: "daniel"
+date: "18 April 2018"
+output: html_document
+---
+
+## Executive summary 
+The goal of this presentation is to visualise various information on the number
+car incident in UK in 2016 
+
+## load library 
+```{r load library}
+library(plotly)
+```
+
+## Donwloading  data 
+```{r download  data}
+temp <- tempfile()
+download.file("http://data.dft.gov.uk/road-accidents-safety-data/dftRoadSafety_Accidents_2016.zip",temp)
+data <- read.csv(unz(temp, "dftRoadSafety_Accidents_2016.csv"))
+unlink(temp)
+```
+
+##  Preparing data 
+```{r prepare data}
+data <- data[data$Accident_Severity == 1, ]
+#select needed columns
+data <- data[,c("Accident_Severity", "Number_of_Casualties", "Day_of_Week", 
+                "Road_Type", "Date", "Light_Conditions", "Weather_Conditions")]
+#compute label
+
+fSeverity <- c ("1"="Fatal", "2"="Serious", "3"="Slight")
+data$Accident_Severity <- factor(data$Accident_Severity, levels=1:3, labels=fSeverity)
+
+fRoadType <- c("1"="Roundabout", "2"="One way street", "3"="Dual carriageway",
+               "6"="Single carriageway", "7"="Slip road", "9"="Unknown",
+               "12"="One way street/Slip road", "-1"="Data missing or out of range")
+data$Road_Type <- factor(data$Road_Type, levels=1:8, labels=fRoadType)
+
+fLight <- c("1"="Daylight", "4"="Darkness - lights lit", "5"="Darkness - lights unlit",
+            "6"="Darkness - no lighting", "7"="Darkness - lighting unknown",
+            "-1"="Data missing or out of range")
+data$Light_Conditions <- factor(data$Light_Conditions, levels=1:6, labels=fLight)
+
+fWeather <- c("1"="Fine no high winds", "2"="Raining no high winds",
+              "3"="Snowing no high winds", "4"="Fine + high winds",
+              "5"="Raining + high winds", "6"="Snowing + high winds",
+              "7"="Fog or mist", "8"="Other", "9"="Unknown",
+              "-1"="Data missing or out of range")
+data$Weather_Conditions <- factor(data$Weather_Conditions, levels=1:10, labels=fWeather)
+
+```
+
+
+## visualise data
+
+```{r visualise Fatal, echo = FALSE}
+
+plot_ly(data, x = ~Date, y=~Number_of_Casualties, mode = 'markers' ,type="scatter")    
+```
+
+```{r visualise Fatal 2, echo = FALSE}
+plot_ly(data, x = ~Road_Type, y=~Number_of_Casualties, type='bar') 
+    
+    
+```
+
