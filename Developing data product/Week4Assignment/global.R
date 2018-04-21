@@ -2,7 +2,7 @@ library(dplyr)
 library(lubridate)
 
 #setwd("C:/datasciencecoursera/Developing data product/Week4Assignment")
-data <- read.csv("data/dftRoadSafety_Accidents_2016.csv")
+data <- read.csv("Data/dftRoadSafety_Accidents_2016.csv")
 
 
 #select needed columns

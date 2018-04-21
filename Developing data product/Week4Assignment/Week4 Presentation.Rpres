@@ -1,0 +1,86 @@
+Week4 Presentation
+========================================================
+author: Daniel 
+date: 20/04/2018
+autosize: true
+
+
+
+```{r data preparation, echo = FALSE}
+library(lubridate)
+#setwd("C:/datasciencecoursera/Developing data product/Week4Assignment")
+data <- read.csv("Data/dftRoadSafety_Accidents_2016.csv")
+
+
+#select needed columns
+data <- data[,c("Accident_Severity",         
+                "Number_of_Casualties", 
+                "Date", 
+                "Light_Conditions")]        
+
+
+#compute label
+
+data <- data[data$Accident_Severity == 1, ]
+
+
+fLight <- c("1"="Daylight", "4"="Darkness - lights lit", 
+            "5"="Darkness - lights unlit", "6"="Darkness - no lighting", 
+            "7"="Darkness - lighting unknown", 
+            "-1"="Data missing or out of range")
+data$Light_Conditions <- factor(data$Light_Conditions, levels=1:6, 
+                                labels=fLight)
+
+data$Date <- factor(month(as.POSIXlt(data$Date,tz=Sys.timezone())), levels=1:12, labels=month.name)
+
+DataDayLight <- aggregate(data$Number_of_Casualties, by = list(data$Light_Conditions), FUN = sum)
+row.names(DataDayLight) <- DataDayLight[,1]
+PlotDataDayLight <- as.matrix(DataDayLight[, 2])
+rownames(PlotDataDayLight) <- DataDayLight$Group.1
+
+DataDate <- aggregate(data$Number_of_Casualties, by = list(data$Date), FUN = sum)
+row.names(DataDate) <- DataDate[,1]
+PlotDate <- as.matrix(DataDate[, 2])
+rownames(PlotDate) <- DataDate$Group.1
+
+
+```
+
+Introduction
+========================================================
+
+The goal of this slide deck is to visualise the causes of fatal injuries 
+in UK in 2016 
+
+For this goal we will used the road safety dataset published on the open data 
+catalogue of UK 
+
+http://data.dft.gov.uk/road-accidents-safety-data/dftRoadSafety_Accidents_2016.zip
+
+Visualisation of fatal accidents based on light conditions 
+========================================================
+Here we can see that most of the fatal accidents occurs during daylight 
+
+```{r, echo = FALSE}
+barplot(t(PlotDataDayLight), 
+        ylab="Number of casualties",
+        las = 2)
+```
+
+Visualisation of fatal accidents throughout the year
+========================================================
+Here we can see that there is a little bit more accident in summer and in December
+
+```{r, echo = FALSE}
+barplot(t(PlotDate), 
+        ylab="Number of casualties",
+        las = 2)
+```
+
+
+Conclusion
+========================================================
+based on the two previous slides it appears that most of the accidents happens 
+during day and that there is a little bit more accident in summer and in December
+
+
