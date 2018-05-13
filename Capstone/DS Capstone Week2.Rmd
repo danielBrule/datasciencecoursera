@@ -1,0 +1,291 @@
+---
+title: "DS Capstone - Week 2"
+author: "daniel"
+date: "12 May 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Executive summary 
+
+The goal of this project is just to display the initial work that has been run on this project 
+
+This file contains code to:
+- Download data, 
+- Prepare and cleaning the data
+- Compute basic statistics
+- Create 3 grams 
+
+
+# Load needed Library 
+
+```{r echo = FALSE}
+library(tm)
+library(SnowballC)
+library(stringr)
+library(ggplot2)
+library(data.tree)
+```
+
+
+# Downloading data
+
+Code to download the data 
+
+```{r}
+#set directory 
+setwd("C:/datasciencecoursera/Capstone")
+
+#init variable 
+destFile <- "Coursera-SwiftKey.zip"
+fileURL <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+
+#if the zip file is not here, download it 
+if(!file.exists(destFile)){
+    res <- download.file(fileURL,
+                         destfile=destFile, 
+                         method="auto")
+    if(res != 0) {
+        print("error while downloading file")
+        quit(status = 1)
+    }
+}
+
+
+#if the file has not been untip then unzip it 
+unzip(destFile, overwrite = FALSE)
+remove(list=c("destFile", "fileURL"))
+```
+
+
+#reading and preparing data
+
+This part of the code read the files and prepare the data by applying the following transformations: 
+- Put all character to lower 
+- remove numbers 
+- split the strings in "phrase" (i.e. using newline, points... as phrase separators)
+- split "phrase" in word 
+- Stem each word (we will loose information but in the context of this project this is probably good enough)
+
+Finally all the words are aggregated into one big string 
+
+```{r}
+fct_PrepareData <- function(filepath){
+    #read file 
+    fileContent <- readChar(filepath, file.info(filepath)$size)
+    
+    #lower chartecters 
+    fileContent <- tolower(fileContent)
+    
+    #remove numbers 
+    fileContent <- removeNumbers(fileContent)
+    
+    #split string in "phrase"
+    fileContent <- strsplit(fileContent, "\\.|\r\n|\\?|!|\\(|\\)|-|_")[[1]]
+
+    #remove empty "phrase"
+    fileContent <- fileContent[fileContent != ""]
+    
+    #split string in word 
+    fileContent <- sapply(fileContent, strsplit, split=" ", simplify = TRUE)
+    
+    #stem all words (not sure if it makes sense)
+    output <- sapply(fileContent, wordStem)    
+
+    return(output)
+}
+
+Sys.time()
+CleanUSBlog <- fct_PrepareData("final/en_US/en_US.blogs.txt")
+CleanUSNews <- fct_PrepareData("final/en_US/en_US.news.txt")
+CleanUSTwitter <- fct_PrepareData("final/en_US/en_US.twitter.txt")
+Sys.time()
+
+wordset <- c(CleanUSBlog, CleanUSNews, CleanUSTwitter)
+
+```
+
+
+# Statistics 
+
+
+We will now compute basic statistics on each 
+
+## size of each file
+```{r  echo = FALSE} 
+USBlog_FileSize <-    file.size("final/en_US/en_US.blogs.txt")/1024
+USNews_FileSize <-    file.size("final/en_US/en_US.news.txt")/1024
+USTwitter_FileSize <- file.size("final/en_US/en_US.twitter.txt")/1024
+
+dFileSize <- data.frame(name =c("US Blog", "US News", "US Twitter"), 
+                        sizeMB = c(USBlog_FileSize, USNews_FileSize, USTwitter_FileSize))
+ggplot(data = dFileSize, aes(name, sizeMB)) + geom_col()
+
+remove(list=c("USBlog_FileSize","USNews_FileSize", "USTwitter_FileSize","dFileSize"))
+```
+
+
+## Number of line per file
+```{r  echo = FALSE} 
+USBlog_NbLine <-    length(readLines("final/en_US/en_US.blogs.txt"))
+USNews_NbLine <-    length(readLines("final/en_US/en_US.news.txt"))
+USTwitter_NbLine <- length(readLines("final/en_US/en_US.twitter.txt"))
+
+dNbLine <- data.frame(name =c("US Blog", "US News", "US Twitter"), 
+                      NbLine = c(USBlog_NbLine, USNews_NbLine, USTwitter_NbLine))
+ggplot(data = dNbLine, aes(name, NbLine)) + geom_col()
+remove(list=c("USBlog_NbLine","USNews_NbLine", "USTwitter_NbLine","dNbLine"))
+
+```
+
+
+## Number of word per file 
+For this one we use the "clean file" (i.e. the files we have clean in the previous section)
+```{r  echo = FALSE} 
+USBlog_NbWords <-    length(CleanUSBlog)
+USNews_NbWords <-    length(CleanUSNews)
+USTwitter_NbWords <- length(CleanUSBlog)
+
+dNbWords <- data.frame(name =c("US Blog", "US News", "US Twitter"), 
+                      NbWords = c(USBlog_NbWords, USNews_NbWords, USTwitter_NbWords))
+ggplot(data = dNbWords, aes(name, NbWords)) + geom_col()
+
+```
+
+Interestingly, we can see that there is almost the same number of words per file 
+- Number of words in US Blog: `USBlog_NbWords`
+- Number of words in US News: `USNews_NbWords`
+- Number of words in US Twitter: `USTwitter_NbWords`
+
+```{r  echo = FALSE} 
+remove(list=c("dNbWords","USBlog_NbWords","USNews_NbWords","USTwitter_NbWords"))
+```
+
+## Most frequent words 
+For this analysis we will use a subset of the words as we don't have the computation power to work with the entire dataset 
+```{r  echo = FALSE} 
+fct_MostUsedWords <- function(wordsSet, NbDocuments){
+    set.seed(42)
+    #take a subset of the documents
+    subset <- sample(wordsSet, NbDocuments)
+    
+    #create one long string 
+    lString <- paste(sapply(subset,function(x){paste(x, collapse = " ")},simplify = T),collapse = ";")
+    
+    #create a corpus 
+    corpus <- Corpus(VectorSource(lString))
+    
+    #count the number of occurence of each word 
+    tdm <- TermDocumentMatrix(corpus, control = list(list(global = c(1, Inf), wordLengths = c(1,20)))) 
+    
+    #put tdm in a data frame and order in on frequence (inverse)
+    m <- as.matrix(tdm)
+    output <- data.frame(word=rownames(m), freq = m)
+    colnames(output) <- c("Word", "Count")
+    output <- output[order(-output$Count), ]
+    NbWords <- sum(output$Count)
+    output$Freq <- output$Count / NbWords
+    rownames(output) <- 1:nrow(output)
+        
+    return(output)
+}
+wordSet50K <- fct_MostUsedWords(wordset, 50000)
+wordSet100K <- fct_MostUsedWords(wordset, 100000)
+wordSet200K <- fct_MostUsedWords(wordset, 200000)
+
+dMostFreqWordPerSubset <- data.frame(Subset50K = sort(as.character(head(wordSet50K$Word, n = 20))), 
+                               Subset100K = sort(as.character(head(wordSet100K$Word, n = 20))),
+                               Subset200K = sort(as.character(head(wordSet200K$Word, n = 20))))
+```
+
+As we can see in the following table, whatever the number word we take for example the list of words are almost the same, this will be useful for the future as we would be able to work on a subset of the dataset without loosing too much of information 
+```{r  echo = FALSE} 
+dMostFreqWordPerSubset
+```
+
+Here is the frequence of the most the 50 most use term when subseting the dataset to 200 000 words 
+```{r  echo = FALSE} 
+head(wordSet200K[ c(1,3)], 50)
+```
+
+
+##Word Analysis 
+
+Considering the size of the dataset we will not be able to create 3-gram of all the words. Consequently, we will have to focus on a subset of the most useful words. The Goal of this subsection is to compute the list of words that represent 90% of the word in the documents. 
+
+```{r}
+wordSet200K$Sum <- 0
+wordSet200K[1,]$Sum <- wordSet200K[1,]$Count
+
+for (i in 2:nrow(wordSet200K)){
+    wordSet200K[i,]$Sum <- wordSet200K[i,]$Count + wordSet200K[i-1,]$Sum
+}
+TotalWord80PerCent <- sum(wordSet200K$Count)*.95
+
+wordSet200K$MostFreq <- wordSet200K$Sum < TotalWord80PerCent
+MostFrequentWord <- wordSet200K[wordSet200K$MostFreq == TRUE,]$Word
+
+```
+
+It appears that `nrow(MostFrequentWord)` of the `nrow(wordSet200K)` present in the dataset represent 95% of the words used. Consequently in the 3-grams we will focus only on these words.
+
+```{r  echo = FALSE} 
+remove(list=c("i","wordSet50K","wordSet100K","wordSet200K","TotalWord80PerCent"))
+
+```
+
+
+
+#Creating 3 grams 
+
+Finally here is the code to create the different 3 grams along with their frequence (please note that prunning is still to be done)
+
+```{r}
+
+MostFrequentWord2 <- as.character(MostFrequentWord)
+
+
+fct_build3Gram <- function(data){
+    #data <- head(CleanUSTwitter, 10000)
+    #i <- 1
+    #j <- 1 
+    #    Rprof("out")
+    
+    root <- Node$new("RootNode")
+
+    for(i in 1:length(data)){
+        tmp <- data[i][[1]]
+        tmp <- tmp[tmp != ""]
+        if(length(tmp) < 3) {
+            next
+        }
+        for (j in 1:(length(tmp) - 2)){
+            w1 <- tmp[j]
+            w2 <- tmp[j + 1]
+            w3 <- tmp[j + 2]
+            if (w1 %in% MostFrequentWord2 &
+                w2 %in% MostFrequentWord2 &
+                w3 %in% MostFrequentWord2){
+                
+                n <- root$AddChild(w1)
+                n <- n$AddChild(w2)
+                n <- n$AddChild(w3)
+                
+                if(is.null(n$nb)){
+                    n$nb <- 1 
+                } else {
+                    n$nb <- n$nb +1 
+                }
+            }
+        }
+    }
+    return(root)
+}
+ 
+tmp <- fct_build3Gram(head(CleanUSTwitter, 10))
+print(tmp, "nb")
+
+```
