@@ -19,7 +19,7 @@ fct_PrepareData <- function(filepath){
     fileContent <- removeNumbers(fileContent)
     
     #split string in "phrase"
-    fileContent <- strsplit(fileContent, "\\.|\r\n|\\?|!|\\(|\\)|-|_")[[1]]
+    fileContent <- strsplit(fileContent, "\\.|\r\n|\\?|!|\\(|\\)|-|_|,|:")[[1]]
     
     #remove empty "phrase"
     fileContent <- fileContent[fileContent != ""]
@@ -33,17 +33,11 @@ fct_PrepareData <- function(filepath){
     return(output)
 }
 
-Sys.time()
-CleanUSBlog <- fct_PrepareData("final/en_US/en_US.blogs.txt")
-CleanUSNews <- fct_PrepareData("final/en_US/en_US.news.txt")
-CleanUSTwitter <- fct_PrepareData("final/en_US/en_US.twitter.txt")
-Sys.time()
+#############################################
+#############################################
+#############################################
 
-wordset <- c(CleanUSBlog, CleanUSNews, CleanUSTwitter)
-
-
-
-fct_MostUsedWords <- function(wordsSet, NbDocuments){
+fct_NbWordUsage <- function(wordsSet, NbDocuments){
     set.seed(42)
     #take a subset of the documents
     subset <- sample(wordsSet, NbDocuments)
@@ -69,26 +63,30 @@ fct_MostUsedWords <- function(wordsSet, NbDocuments){
     
     return(output)
 }
-wordSet200K <- fct_MostUsedWords(wordset, 200000)
+
+#############################################
+#############################################
+#############################################
 
 
 
-
-wordSet200K$Sum <- 0
-wordSet200K[1,]$Sum <- wordSet200K[1,]$Count
-
-for (i in 2:nrow(wordSet200K)){
-    wordSet200K[i,]$Sum <- wordSet200K[i,]$Count + wordSet200K[i-1,]$Sum
+fct_MostFrequentWord <- function(WordUsage, percent){
+    WordUsage$Sum <- 0
+    WordUsage[1,]$Sum <- WordUsage[1,]$Count
+    
+    for (i in 2:nrow(WordUsage)){
+        WordUsage[i,]$Sum <- WordUsage[i,]$Count + WordUsage[i-1,]$Sum
+    }
+    TotalWord80PerCent <- sum(WordUsage$Count)*.95
+    
+    WordUsage$MostFreq <- WordUsage$Sum < TotalWord80PerCent
+    MostFrequentWord <- WordUsage[WordUsage$MostFreq == TRUE,]$Word
+    
+    return(as.character(MostFrequentWord))
 }
-TotalWord80PerCent <- sum(wordSet200K$Count)*.95
-
-wordSet200K$MostFreq <- wordSet200K$Sum < TotalWord80PerCent
-MostFrequentWord <- wordSet200K[wordSet200K$MostFreq == TRUE,]$Word
 
 
 
-
-remove(list=c("wordSet200K","TotalWord80PerCent","i"))
 
 
 ################################################################################
@@ -97,11 +95,9 @@ remove(list=c("wordSet200K","TotalWord80PerCent","i"))
 ################################################################################
 
 
-MostFrequentWord2 <- as.character(MostFrequentWord)
 
 
-
-fct_build3Gram <- function(data, NbDocuments){
+fct_build3Gram <- function(data, NbDocuments, MostFrequentWord){
     set.seed(42)
     data <- sample(data, NbDocuments)
     
@@ -117,9 +113,9 @@ fct_build3Gram <- function(data, NbDocuments){
             w1 <- tmp[j]
             w2 <- tmp[j + 1]
             w3 <- tmp[j + 2]
-            if (w1 %in% MostFrequentWord2 &
-                w2 %in% MostFrequentWord2 &
-                w3 %in% MostFrequentWord2){
+            if (w1 %in% MostFrequentWord &
+                w2 %in% MostFrequentWord &
+                w3 %in% MostFrequentWord){
                 
                 N1 <- root$children[[w1]]
                 if(is.null(N1))
@@ -145,26 +141,11 @@ fct_build3Gram <- function(data, NbDocuments){
     return(root)
 }
 
-Sys.time()
-t <- Sys.time()
-ThreeGram <- fct_build3Gram(wordset, 200000)
-Sys.time() - t        
-
-
-
-save(ThreeGram, file = 'threeGram.Rdata')
-
-
-remove(list = c("CleanUSBlog", "CleanUSNews", "CleanUSTwitter", "MostFrequentWord"))
-remove(list=c("fct_build3Gram", "fct_MostUsedWords", "fct_PrepareData"))
-
 
 
 #############################################
-
-#t <- Sys.time()
-#load('threeGram.Rdata')
-#Sys.time() - t        
+#############################################
+#############################################
 
 
 fct_cleanTree <- function(node){
@@ -194,6 +175,64 @@ fct_cleanTree <- function(node){
 }
 
 
-ThreeGramClean <- fct_cleanTree(ThreeGram)
-save(ThreeGramClean, file = 'threeGramClean.Rdata')
 
+
+
+#############################################
+#############################################
+#############################################
+
+
+fct_treeToFrame <- function(node){
+    #node <- ThreeGram
+    nbLeaf <- node$leafCount
+    
+    output <- data.frame(w1 = rep("", nbLeaf),
+                         w2 = rep("", nbLeaf),
+                         w3 = rep("", nbLeaf), 
+                         stringsAsFactors = FALSE)
+    cpt <- 1 
+    
+    for (i in 1:length(node$children)){
+        N1 <- node$children[[i]]
+        w1 <- N1$name
+        
+        for (j in 1:length(N1$children)){
+            N2 <- N1$children[[j]]
+            w2 <- N2$name
+            
+            for (k in 1:length(N2$children)){
+                N3 <- N2$children[[k]]
+                w3 <- N3$name
+                
+                output[cpt, 1] <- w1 
+                output[cpt, 2] <- w2 
+                output[cpt, 3] <- w3
+                cpt <- cpt +1 
+            }
+        }
+    }
+
+    return (output)
+}
+
+#############################################
+#############################################
+#############################################
+
+
+CleanUSBlog <- fct_PrepareData("final/en_US/en_US.blogs.txt")
+CleanUSNews <- fct_PrepareData("final/en_US/en_US.news.txt")
+CleanUSTwitter <- fct_PrepareData("final/en_US/en_US.twitter.txt")
+wordset <- c(CleanUSBlog, CleanUSNews, CleanUSTwitter)
+remove(list = c("CleanUSBlog", "CleanUSNews", "CleanUSTwitter"))
+
+mostUsedWord <- fct_NbWordUsage(wordset, 200000)
+MostFrequentWord <- fct_MostFrequentWord(mostUsedWord, .95)
+remove(mostUsedWord)
+
+ThreeGram <- fct_build3Gram(wordset, 20000, MostFrequentWord)
+ThreeGram <- fct_cleanTree(ThreeGram)
+ThreeGram <- fct_treeToFrame(ThreeGram)
+
+write.csv(ThreeGram, file = "ThreeGram.csv")
