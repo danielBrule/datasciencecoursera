@@ -8,6 +8,7 @@ Sys.time()
 setwd("C:/datasciencecoursera/Capstone")
 
 
+
 fct_PrepareData <- function(filepath){
     #read file 
     fileContent <- readChar(filepath, file.info(filepath)$size)
@@ -15,11 +16,17 @@ fct_PrepareData <- function(filepath){
     #lower chartecters 
     fileContent <- tolower(fileContent)
     
+    #lower chartecters 
+    fileContent <- gsub(fileContent, pattern = "\t", replacement = " ")
+    
+    #remove characters
+    fileContent <- removePunctuation(fileContent)
+
     #remove numbers 
     fileContent <- removeNumbers(fileContent)
     
     #split string in "phrase"
-    fileContent <- strsplit(fileContent, "\\.|\r\n|\\?|!|\\(|\\)|-|_|,|:")[[1]]
+    fileContent <- strsplit(fileContent, "\r\n")[[1]]
     
     #remove empty "phrase"
     fileContent <- fileContent[fileContent != ""]
@@ -28,19 +35,16 @@ fct_PrepareData <- function(filepath){
     fileContent <- sapply(fileContent, strsplit, split=" ", simplify = TRUE)
     
     #stem all words (not sure if it makes sense)
-    output <- sapply(fileContent, wordStem)    
+#    output <- sapply(fileContent, wordStem)    
     
-    return(output)
+    return(fileContent)
 }
 
 #############################################
 #############################################
 #############################################
 
-fct_NbWordUsage <- function(wordsSet, NbDocuments){
-    set.seed(42)
-    #take a subset of the documents
-    subset <- sample(wordsSet, NbDocuments)
+fct_NbWordUsage <- function(subset){
     
     #create one long string 
     lString <- paste(sapply(subset,function(x){paste(x, collapse = " ")},simplify = T),collapse = " ")
@@ -97,9 +101,7 @@ fct_MostFrequentWord <- function(WordUsage, percent){
 
 
 
-fct_build3Gram <- function(data, NbDocuments, MostFrequentWord){
-    set.seed(42)
-    data <- sample(data, NbDocuments)
+fct_build3Gram <- function(data, MostFrequentWord){
     
     root <- Node$new("RootNode")
     
@@ -220,19 +222,31 @@ fct_treeToFrame <- function(node){
 #############################################
 #############################################
 
-
+Sys.time()
 CleanUSBlog <- fct_PrepareData("final/en_US/en_US.blogs.txt")
-CleanUSNews <- fct_PrepareData("final/en_US/en_US.news.txt")
+CleanUSNews <- fct_PrepareData("final/en_us/en_US.news.txt")
 CleanUSTwitter <- fct_PrepareData("final/en_US/en_US.twitter.txt")
 wordset <- c(CleanUSBlog, CleanUSNews, CleanUSTwitter)
 remove(list = c("CleanUSBlog", "CleanUSNews", "CleanUSTwitter"))
 
-mostUsedWord <- fct_NbWordUsage(wordset, 200000)
-MostFrequentWord <- fct_MostFrequentWord(mostUsedWord, .95)
-remove(mostUsedWord)
+set.seed(42)
+subset <- sample(wordset, 50000)
 
-ThreeGram <- fct_build3Gram(wordset, 20000, MostFrequentWord)
-ThreeGram <- fct_cleanTree(ThreeGram)
-ThreeGram <- fct_treeToFrame(ThreeGram)
+subsetStr <- paste(sapply(subset,function(x){paste(x, collapse = " ")},simplify = T),collapse = "\n")
+write(subsetStr, "Subset50k.txt")
 
-write.csv(ThreeGram, file = "ThreeGram.csv")
+usedWord <- fct_NbWordUsage(subset)
+MostFrequentWord <- fct_MostFrequentWord(usedWord, .95)
+remove(usedWord)
+write(MostFrequentWord, "MostFrequentWord50k.txt")
+
+gc()
+
+ThreeGram <- fct_build3Gram(subset, MostFrequentWord)
+ThreeGram2 <- fct_cleanTree(ThreeGram)
+ThreeGram3 <- fct_treeToFrame(ThreeGram2)
+
+write.csv(ThreeGram3, file = "ThreeGram50k.csv")
+
+ThreeGram4 <- fct_treeToFrame(ThreeGram2)
+write.csv(ThreeGram4, file = "ThreeGram50k_notClean.csv")
