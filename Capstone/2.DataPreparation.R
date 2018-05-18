@@ -75,14 +75,15 @@ fct_NbWordUsage <- function(subset){
 
 
 fct_MostFrequentWord <- function(WordUsage, percent){
+    
     WordUsage$Sum <- 0
     WordUsage[1,]$Sum <- WordUsage[1,]$Count
     
     for (i in 2:nrow(WordUsage)){
         WordUsage[i,]$Sum <- WordUsage[i,]$Count + WordUsage[i-1,]$Sum
     }
-    TotalWord80PerCent <- sum(WordUsage$Count)*.95
-    
+    TotalWord80PerCent <- sum(WordUsage$Count)*percent
+
     WordUsage$MostFreq <- WordUsage$Sum < TotalWord80PerCent
     MostFrequentWord <- WordUsage[WordUsage$MostFreq == TRUE,]$Word
     
@@ -102,10 +103,22 @@ fct_MostFrequentWord <- function(WordUsage, percent){
 
 
 fct_build3Gram <- function(data, MostFrequentWord){
+    #data <- subset
+    #MostFrequentWord <- MostFrequentWord
+    #i <- 1 
+# j<- 1 
+    tabSize <- 200000
     
-    root <- Node$new("RootNode")
-    
+    output <- data.frame(word1 = rep("", tabSize),
+                         word2 = rep("", tabSize),
+                         word3 = rep("", tabSize),
+                         nbOccurence = rep(0, tabSize), 
+                         stringsAsFactors = FALSE)
+    row.names(output) <- 1:tabSize
+    curPos <- 1 
+
     for(i in 1:length(data)){
+        cat("pos :", i, "\n")
         tmp <- data[i][[1]]
         tmp <- tmp[tmp != ""]
         if(length(tmp) < 3) {
@@ -119,28 +132,31 @@ fct_build3Gram <- function(data, MostFrequentWord){
                 w2 %in% MostFrequentWord &
                 w3 %in% MostFrequentWord){
                 
-                N1 <- root$children[[w1]]
-                if(is.null(N1))
-                    N1 <- root$AddChild(w1)
-                
-                N2 <- N1$children[[w2]]
-                if(is.null(N2))
-                    N2 <- N1$AddChild(w2)
-                
-                N3 <- N2$children[[w3]]
-                if(is.null(N3))
-                    N3 <- N2$AddChild(w3)
-                
-
-                if(is.null(N3$nb)){
-                    N3$nb <- 1
+                sub <- subset(output, word1 == w1 & word2 == w2 & word3 == w3)
+                if (nrow(sub) == 0){
+                    output[curPos, 1:4] <- c(w1, w2, w3, 1)
+                    curPos <- curPos +1 
+                    if(curPos > tabSize){
+                        output2 <- data.frame(word1 = rep("", tabSize),
+                                             word2 = rep("", tabSize),
+                                             word3 = rep("", tabSize),
+                                             nbOccurence = rep(0, tabSize), 
+                                             stringsAsFactors = FALSE)
+                        output <- rbind(output, output2)
+                        tabSize <- tabSize * 2 
+                        cat("resize :", nrow(output), "\n")
+                        
+                    }
                 } else {
-                    N3$nb <- N3$nb +1 
+                    
+                    output[row.names(sub)[1], 4] <- as.numeric(sub[1,4]) + 1 
                 }
+                    
+
             }
         }
     }
-    return(root)
+    return(output)
 }
 
 
@@ -236,13 +252,18 @@ subsetStr <- paste(sapply(subset,function(x){paste(x, collapse = " ")},simplify 
 write(subsetStr, "Subset50k.txt")
 
 usedWord <- fct_NbWordUsage(subset)
-MostFrequentWord <- fct_MostFrequentWord(usedWord, .95)
-remove(usedWord)
+MostFrequentWord <- fct_MostFrequentWord(usedWord, .8)
 write(MostFrequentWord, "MostFrequentWord50k.txt")
+remove(usedWord)
 
-gc()
 
-ThreeGram <- fct_build3Gram(subset, MostFrequentWord)
+
+system.time(
+    ThreeGram <- fct_build3Gram(sample(subset, 20000) , MostFrequentWord)
+)
+write.csv(ThreeGram, file = "ThreeGram20k_notClean.csv")
+
+
 ThreeGram2 <- fct_cleanTree(ThreeGram)
 ThreeGram3 <- fct_treeToFrame(ThreeGram2)
 
