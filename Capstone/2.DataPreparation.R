@@ -1,11 +1,13 @@
+
 library(tm)
 library(SnowballC)
 library(stringr)
 library(ggplot2)
 library(data.tree)
-
+library(data.table)
+library(dplyr)
 Sys.time()
-setwd("C:/datasciencecoursera/Capstone")
+setwd("C:/coursera/Capstone")
 
 
 
@@ -40,58 +42,6 @@ fct_PrepareData <- function(filepath){
     return(fileContent)
 }
 
-#############################################
-#############################################
-#############################################
-
-fct_NbWordUsage <- function(subset){
-    
-    #create one long string 
-    lString <- paste(sapply(subset,function(x){paste(x, collapse = " ")},simplify = T),collapse = " ")
-    
-    #create a corpus 
-    corpus <- VCorpus(VectorSource(lString))
-
-
-    #count the number of occurence of each word 
-    tdm <- TermDocumentMatrix(corpus, control = list(global = c(1, Inf), wordLengths = c(1,20)))
-    
-    #put tdm in a data frame and order in on frequence (inverse)
-    m <- as.matrix(tdm)
-    output <- data.frame(word=rownames(m), freq = m)
-    colnames(output) <- c("Word", "Count")
-    output <- output[order(-output$Count), ]
-    NbWords <- sum(output$Count)
-    output$Freq <- output$Count / NbWords
-    rownames(output) <- 1:nrow(output)
-    
-    return(output)
-}
-
-#############################################
-#############################################
-#############################################
-
-
-
-fct_MostFrequentWord <- function(WordUsage, percent){
-    
-    WordUsage$Sum <- 0
-    WordUsage[1,]$Sum <- WordUsage[1,]$Count
-    
-    for (i in 2:nrow(WordUsage)){
-        WordUsage[i,]$Sum <- WordUsage[i,]$Count + WordUsage[i-1,]$Sum
-    }
-    TotalWord80PerCent <- sum(WordUsage$Count)*percent
-
-    WordUsage$MostFreq <- WordUsage$Sum < TotalWord80PerCent
-    MostFrequentWord <- WordUsage[WordUsage$MostFreq == TRUE,]$Word
-    
-    return(as.character(MostFrequentWord))
-}
-
-
-
 
 
 ################################################################################
@@ -102,141 +52,60 @@ fct_MostFrequentWord <- function(WordUsage, percent){
 
 
 
-fct_build3Gram <- function(data, MostFrequentWord){
-    #data <- subset
-    #MostFrequentWord <- MostFrequentWord
-    #i <- 1 
-# j<- 1 
-    tabSize <- 200000
-    
-    output <- data.frame(word1 = rep("", tabSize),
-                         word2 = rep("", tabSize),
-                         word3 = rep("", tabSize),
-                         nbOccurence = rep(0, tabSize), 
-                         stringsAsFactors = FALSE)
-    row.names(output) <- 1:tabSize
-    curPos <- 1 
-
-    for(i in 1:length(data)){
-        cat("pos :", i, "\n")
-        tmp <- data[i][[1]]
-        tmp <- tmp[tmp != ""]
-        if(length(tmp) < 3) {
-            next
-        }
-        for (j in 1:(length(tmp) - 2)){
-            w1 <- tmp[j]
-            w2 <- tmp[j + 1]
-            w3 <- tmp[j + 2]
-            if (w1 %in% MostFrequentWord &
-                w2 %in% MostFrequentWord &
-                w3 %in% MostFrequentWord){
-                
-                sub <- subset(output, word1 == w1 & word2 == w2 & word3 == w3)
-                if (nrow(sub) == 0){
-                    output[curPos, 1:4] <- c(w1, w2, w3, 1)
-                    curPos <- curPos +1 
-                    if(curPos > tabSize){
-                        output2 <- data.frame(word1 = rep("", tabSize),
-                                             word2 = rep("", tabSize),
-                                             word3 = rep("", tabSize),
-                                             nbOccurence = rep(0, tabSize), 
-                                             stringsAsFactors = FALSE)
-                        output <- rbind(output, output2)
-                        tabSize <- tabSize * 2 
-                        cat("resize :", nrow(output), "\n")
-                        
-                    }
-                } else {
-                    
-                    output[row.names(sub)[1], 4] <- as.numeric(sub[1,4]) + 1 
-                }
-                    
-
-            }
-        }
-    }
-    return(output)
+fct_buildNGram <- function(data, N){
+# data <- corp    
+# N <- 3 
+  
+  tokens <- function(x) unlist(lapply(ngrams(words(x), N), paste, collapse = " "), use.names = FALSE)
+  tdm <- TermDocumentMatrix(data, control = list(tokenize = tokens))
+  tdmr <- sort(slam::row_sums(tdm, na.rm = T), decreasing=TRUE)
+  tdmr.t <- data.table(token = names(tdmr), count = unname(tdmr)) 
+  tdmr.t[,  paste0("w", seq(N)) := tstrsplit(token, " ", fixed=TRUE)]
+  # remove source token to save memory
+  tdmr.t$token <- NULL
+  return(as.data.frame(tdmr.t))
 }
 
 
+#####################################################################
+Sys.time()
+CleanUSBlog <- fct_PrepareData("final/en_US/en_US.blogs.txt")
+CleanUSNews <- fct_PrepareData("final/en_us/en_US.news.txt")
+CleanUSTwitter <- fct_PrepareData("final/en_US/en_US.twitter.txt")
+wordset <- c(CleanUSBlog, CleanUSNews, CleanUSTwitter)
+remove(list = c("CleanUSBlog", "CleanUSNews", "CleanUSTwitter"))
+set.seed(42)
+subset <- sample(wordset, length(wordset)*.2)
+remove(wordset)
+subsetStr <- paste(sapply(subset,function(x){paste(x, collapse = " ")},simplify = T),collapse = "\n")
+write(subsetStr, "Subset.txt")
+gc()
 
-#############################################
-#############################################
-#############################################
 
 
-fct_cleanTree <- function(node){
-    for (i in 1:length(node$children)){
-        N1 <- node$children[[i]]
-            
-        for (j in 1:length(N1$children)){
-            N2 <- N1$children[[j]]
-            
-            if (length(N2$children) != 1){
-                leafs <- data.frame(nb= Get(N2$children, function(node) Aggregate(node, "nb", max)))
-                leafs$name <- rownames(leafs)
-                leafToKeep <- leafs[leafs$nb==max(leafs$nb),]$name
-                k <- 1 
-                while (k <= length(N2$children)){
-                    if (N2$children[[k]]$name != leafToKeep){
-                        N2$RemoveChild(N2$children[[k]]$name)
-                    }
-                    else {
-                        k <- k + 1
-                    }
-                }
-            }
-        }
-    }
-    return(node)
-}
+corp <- VCorpus(VectorSource(subsetStr))
+corp <- tm_map(corp, PlainTextDocument)
+NGram <- fct_buildNGram(corp, 5)
+write.csv(NGram, "NGram5.csv")
+gc()
+NGram <- fct_buildNGram(corp, 6)
+write.csv(NGram, "NGram6.csv")
+gc()
+rm(NGram)
+rm(corp)
+rm(subsetStr)
+rm(subset)
 
 
 
 
 
-#############################################
-#############################################
-#############################################
 
 
-fct_treeToFrame <- function(node){
-    #node <- ThreeGram
-    nbLeaf <- node$leafCount
-    
-    output <- data.frame(w1 = rep("", nbLeaf),
-                         w2 = rep("", nbLeaf),
-                         w3 = rep("", nbLeaf), 
-                         stringsAsFactors = FALSE)
-    cpt <- 1 
-    
-    for (i in 1:length(node$children)){
-        N1 <- node$children[[i]]
-        w1 <- N1$name
-        
-        for (j in 1:length(N1$children)){
-            N2 <- N1$children[[j]]
-            w2 <- N2$name
-            
-            for (k in 1:length(N2$children)){
-                N3 <- N2$children[[k]]
-                w3 <- N3$name
-                
-                output[cpt, 1] <- w1 
-                output[cpt, 2] <- w2 
-                output[cpt, 3] <- w3
-                cpt <- cpt +1 
-            }
-        }
-    }
 
-    return (output)
-}
 
-#############################################
-#############################################
-#############################################
+
+
 
 Sys.time()
 CleanUSBlog <- fct_PrepareData("final/en_US/en_US.blogs.txt")
@@ -244,30 +113,20 @@ CleanUSNews <- fct_PrepareData("final/en_us/en_US.news.txt")
 CleanUSTwitter <- fct_PrepareData("final/en_US/en_US.twitter.txt")
 wordset <- c(CleanUSBlog, CleanUSNews, CleanUSTwitter)
 remove(list = c("CleanUSBlog", "CleanUSNews", "CleanUSTwitter"))
-
 set.seed(42)
-subset <- sample(wordset, 50000)
-
+subset <- sample(wordset, length(wordset)*.6)
+remove(wordset)
 subsetStr <- paste(sapply(subset,function(x){paste(x, collapse = " ")},simplify = T),collapse = "\n")
-write(subsetStr, "Subset50k.txt")
-
-usedWord <- fct_NbWordUsage(subset)
-MostFrequentWord <- fct_MostFrequentWord(usedWord, .8)
-write(MostFrequentWord, "MostFrequentWord50k.txt")
-remove(usedWord)
-
-
-
-system.time(
-    ThreeGram <- fct_build3Gram(sample(subset, 20000) , MostFrequentWord)
-)
-write.csv(ThreeGram, file = "ThreeGram20k_notClean.csv")
-
-
-ThreeGram2 <- fct_cleanTree(ThreeGram)
-ThreeGram3 <- fct_treeToFrame(ThreeGram2)
-
-write.csv(ThreeGram3, file = "ThreeGram50k.csv")
-
-ThreeGram4 <- fct_treeToFrame(ThreeGram2)
-write.csv(ThreeGram4, file = "ThreeGram50k_notClean.csv")
+write(subsetStr, "Subset.txt")
+gc()
+corp <- VCorpus(VectorSource(subsetStr))
+corp <- tm_map(corp, PlainTextDocument)
+rm(subsetStr)
+rm(subset)
+gc()
+NGram <- fct_buildNGram(corp, 3)
+write.csv(NGram, "NGram3-3.csv")
+gc()
+NGram <- fct_buildNGram(corp, 4)
+write.csv(NGram, "NGram4-3.csv")
+gc()

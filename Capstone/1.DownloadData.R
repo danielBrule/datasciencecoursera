@@ -1,5 +1,5 @@
 
-setwd("C:/datasciencecoursera/Capstone")
+setwd("C:/coursera/Capstone")
 
 
 destFile <- "Coursera-SwiftKey.zip"
