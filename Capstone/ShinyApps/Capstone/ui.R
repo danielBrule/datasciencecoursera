@@ -12,17 +12,16 @@ fluidPage(
             sliderInput("MaxProposition", "Maximum number of proposition",
                         0, 10, 5, step = 1),
             hr(),
-            actionButton("go", label = "Go")
+            actionButton("go", label = "Guess next word")
             ),
         
         mainPanel(
             tabsetPanel(
                 tabPanel("Words", 
                          textOutput("ProposedWords"),
-                         radioButtons('ProposedWordsButton', "Proposed words:", c("NULL")),
-                         actionButton('submit', label = "Submit")
+                         radioButtons('ProposedWordsButton', "Proposed words:", c("")),
+                         actionButton('submit', label = "Insert word")
                          ),
-                tabPanel("NGram", tableOutput("NGram")),
                 tabPanel("Documentation", textOutput("Documentation"))
                 )
             )

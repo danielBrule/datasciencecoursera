@@ -47,7 +47,7 @@ NGram4 <- NGram4[NGram4$count!=1,]
 
 
 NGram3 <- subset(NGram3, select = -c(X))
-NGram3 <- NGram6[order(NGram3$w1,
+NGram3 <- NGram3[order(NGram3$w1,
                        NGram3$w2,
                        NGram3$count, 
                        decreasing = TRUE),]

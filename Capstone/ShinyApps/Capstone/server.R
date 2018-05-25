@@ -1,76 +1,47 @@
-library(shiny)
 library(tm)
 
+        
+        
+setwd("C:/Coursera/Capstone/ShinyApps/Capstone")
 
-# setwd("C:/Coursera/Capstone/ShinyApps/Capstone")
-# 
-# NGram3 <- read.csv("Data/nGram3-small.csv")
-# NGram4 <- read.csv("Data/nGram4-small.csv")
-# NGram5 <- read.csv("Data/nGram5-small.csv")
-# NGram6 <- read.csv("Data/nGram6-small.csv")
-# 
-# 
-# fct_guessNext <- function(sentence){
-#     #sentence <- "I am"
-#     sentence <- removeNumbers(sentence)
-#     sentence <- removePunctuation(sentence)
-#     sentence <- tolower(sentence)
-#     
-#     words <- unlist(strsplit(sentence, split = " " ))
-#     
-#     # only focus on last 5 words
-#     words <- tail(words, 5)
-#     
-#     if (length(words)< 2)
-#         return(NULL)
-#     
-#     if(length(words) == 2){
-#         word1 <- "";
-#         word2 <- "";
-#         word3 <- "";
-#         word4 <- words[1];
-#         word5 <- words[2];
-#     } else if (length(words) == 3){
-#         word1 <- "";
-#         word2 <- "";
-#         word3 <- words[1];
-#         word4 <- words[2];
-#         word5 <- words[3];
-#     } else if (length(words) == 4){
-#         word1 <- "";
-#         word2 <- words[1];
-#         word3 <- words[2];
-#         word4 <- words[3];
-#         word5 <- words[4];
-#     } else {
-#         word1 <- words[1];
-#         word2 <- words[2];
-#         word3 <- words[3];
-#         word4 <- words[4];
-#         word5 <- words[5];
-#     }
-#     
-#     
-#     
-#     
-#     datasub6 <- subset(NGram6, w1==word1 & w2==word2 & w3==word3 & w4==word4 & w5==word5)
-#     if(nrow(datasub6) > 0){
-#         return(datasub6)
-#     }
-#     
-#     datasub5 <- subset(NGram5, w1==word1 & w2==word2 & w3==word4 & w4==word5)
-#     if(nrow(datasub5) > 0){
-#         return(datasub5)
-#     }
-#     
-#     datasub4 <- subset(NGram4, w1==word3 & w2==word4 & w3==word5)
-#     if(nrow(datasub4) > 0){
-#         return(datasub4)
-#     }
-#     
-#     datasub3 <- subset(NGram3, w1==word4 & w2==word5)
-#     return(datasub3)
-# }
+NGram3 <- read.csv("Data/nGram3-small.csv")
+NGram4 <- read.csv("Data/nGram4-small.csv")
+
+
+fct_guessNextList <- function(sentence){
+    #sentence <- "Enter your sentence..."
+    #sentence <- "I am"
+    sentence <- removeNumbers(sentence)
+    sentence <- removePunctuation(sentence)
+    sentence <- tolower(sentence)
+
+    words <- unlist(strsplit(sentence, split = " " ))
+
+    # only focus on last 5 words
+    words <- tail(words, 3)
+
+    if (length(words)< 2)
+        return(NULL)
+
+    if(length(words) == 2){
+        word1 <- words[1];
+        word2 <- words[2];
+        word3 <- "";
+    } else {
+        word1 <- words[1];
+        word2 <- words[2];
+        word3 <- words[3];
+    } 
+
+    datasub4 <- subset(NGram4, w1==word1 & w2==word2 & w3==word3)
+    if(nrow(datasub4) > 0){
+        return (as.character(datasub4$w4) )
+    }
+
+    datasub3 <- subset(NGram3, w1==word1 & w2==word2)
+    
+    return (as.character(datasub3$w3) )
+}
 
 
 
@@ -88,12 +59,18 @@ shinyServer(function(input, output, session) {
   observeEvent(
       input$go,
       {
-              # possibleWords <- fct_guessNext(input$sentence)
-              # options <- c("item 1", "item 2", "item 3")
+              possibleWords <- fct_guessNextList(input$sentence)
+#              showModal(modalDialog( title = "step1",paste(possibleWords, collapse = "")))
+              
+              if(length(possibleWords) == 0){
+                possibleWords <- c("")  
+              } else {
+                possibleWords <- possibleWords[1:min(length(possibleWords), input$MaxProposition)]
+              }
               updateRadioButtons(session,
                                  inputId = "ProposedWordsButton",
                                  label = "Proposed words:",
-                                 choices = c("item 1", "item 2", "item 3")
+                                 choices = possibleWords
                                  )
       }
   )
